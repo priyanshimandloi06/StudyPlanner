@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block content %}
+<h4>Weekly Report <small class="text-muted fs-6">{{ plan.start_date }} to {{ plan.end_date }}</small></h4>
+<div class="row g-3 my-2">
+  <div class="col-md-4"><div class="card card-body text-center"><small>Overall follow</small><h2>{{ overall }}%</h2></div></div>
+  <div class="col-md-4"><div class="card card-body text-center"><small>Total studied</small><h2>{{ total_studied }}</h2></div></div>
+  <div class="col-md-4"><div class="card card-body text-center"><small>Total planned</small><h2>{{ total_planned }}</h2></div></div>
+</div>
+<div class="card card-body mb-4"><canvas id="chart" height="90"></canvas></div>
+<table class="table table-bordered bg-white">
+  <thead><tr><th>Date</th><th>Planned</th><th>Studied</th><th>Followed</th><th>Slots</th></tr></thead>
+  <tbody>
+  {% for d in days %}
+    <tr>
+      <td>{{ d.date|date:"D, d M" }}</td>
+      <td>{{ d.planned_txt }}</td>
+      <td>{{ d.studied_txt }}</td>
+      <td><b class="{% if d.percent >= 80 %}text-success{% elif d.percent >= 40 %}text-warning{% else %}text-danger{% endif %}">{{ d.percent }}%</b></td>
+      <td>{% for r in d.rows %}<span title="{{ r.slot.subject }}">{% if r.status == 'done' %}✅{% elif r.status == 'partial' %}⚠️{% elif r.status == 'missed' %}❌{% else %}⏳{% endif %}</span> {% endfor %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{{ chart|json_script:"chart-data" }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+  var c = JSON.parse(document.getElementById('chart-data').textContent);
+  new Chart(document.getElementById('chart'), {
+    type: 'bar',
+    data: { labels: c.labels, datasets: [
+      { label: 'Planned (min)', data: c.planned, backgroundColor: '#adb5bd' },
+      { label: 'Studied (min)', data: c.studied, backgroundColor: '#198754' }
+    ]},
+    options: { scales: { y: { beginAtZero: true } } }
+  });
+</script>
+{% endblock %}

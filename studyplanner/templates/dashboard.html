@@ -1,0 +1,74 @@
+{% extends 'base.html' %}
+{% block content %}
+{% if not in_week %}
+  <div class="card card-body text-center">
+    <h4>Your week ({{ plan.start_date }} to {{ plan.end_date }}) has ended or has not started yet.</h4>
+    <p>View the report or start a new week.</p>
+    <div>
+      <a class="btn btn-primary" href="{% url 'report' %}">Weekly Report</a>
+      <form method="post" action="{% url 'new_week' %}" class="d-inline">{% csrf_token %}
+        <input type="hidden" name="copy" value="1">
+        <button class="btn btn-success">Start a new week (same timetable)</button>
+      </form>
+    </div>
+  </div>
+{% else %}
+  <div class="row g-3 mb-4">
+    <div class="col-md-3"><div class="card card-body text-center"><small>Day</small><h3>{{ day_no }} / 7</h3></div></div>
+    <div class="col-md-3"><div class="card card-body text-center"><small>Planned</small><h3>{{ planned_txt }}</h3></div></div>
+    <div class="col-md-3"><div class="card card-body text-center"><small>Studied</small><h3>{{ studied_txt }}</h3></div></div>
+    <div class="col-md-3"><div class="card card-body text-center"><small>Followed</small><h3>{{ today.percent }}%</h3></div></div>
+  </div>
+  <div class="progress mb-4" style="height:22px">
+    <div class="progress-bar {% if today.percent >= 80 %}bg-success{% elif today.percent >= 40 %}bg-warning{% else %}bg-danger{% endif %}"
+         style="width:{{ today.percent }}%">{{ today.percent }}%</div>
+  </div>
+  <h5>Today's timetable ({{ today.date|date:"l, d M" }})</h5>
+  {% for r in today.rows %}
+  <div class="card card-body mb-2">
+    <div class="d-flex flex-wrap align-items-center gap-3">
+      <div class="flex-grow-1">
+        <strong>{{ r.slot.subject }}</strong>
+        <div class="text-muted">{{ r.slot.start_time|time:"h:i A" }} - {{ r.slot.end_time|time:"h:i A" }}
+          · planned {{ r.slot.planned_minutes }} min · studied <b>{{ r.minutes }}</b> min</div>
+      </div>
+      <span class="badge fs-6 {% if r.status == 'done' %}bg-success{% elif r.status == 'partial' %}bg-warning text-dark{% elif r.status == 'missed' %}bg-danger{% else %}bg-secondary{% endif %}">
+        {% if r.status == 'done' %}✅ Done{% elif r.status == 'partial' %}⚠️ Partial{% elif r.status == 'missed' %}❌ Missed{% else %}⏳ Pending{% endif %}
+      </span>
+      <form method="post" action="{% url 'log_minutes' r.slot.id %}" class="d-flex gap-2 align-items-center">{% csrf_token %}
+        <input type="number" name="minutes" min="1" placeholder="min" class="form-control form-control-sm timer-min" style="width:80px">
+        <button class="btn btn-sm btn-outline-primary">Add</button>
+        <button name="full" value="1" class="btn btn-sm btn-success">Full done</button>
+        <button type="button" class="btn btn-sm btn-outline-dark timer-btn">▶ Start</button>
+        <span class="timer-show small text-muted"></span>
+      </form>
+    </div>
+  </div>
+  {% empty %}
+  <div class="alert alert-secondary">There are no slots for today. Relax 😄</div>
+  {% endfor %}
+  <script>
+  document.querySelectorAll('.timer-btn').forEach(function (btn) {
+    var t = null, start = 0;
+    var form = btn.closest('form');
+    var show = form.querySelector('.timer-show');
+    var input = form.querySelector('.timer-min');
+    btn.addEventListener('click', function () {
+      if (!t) {
+        start = Date.now();
+        btn.textContent = '⏹ Stop';
+        t = setInterval(function () {
+          var s = Math.floor((Date.now() - start) / 1000);
+          show.textContent = Math.floor(s / 60) + 'm ' + (s % 60) + 's';
+        }, 1000);
+      } else {
+        clearInterval(t); t = null;
+        input.value = Math.max(1, Math.round((Date.now() - start) / 60000));
+        btn.textContent = '▶ Start';
+        show.textContent = 'Then click "Add"';
+      }
+    });
+  });
+  </script>
+{% endif %}
+{% endblock %}
